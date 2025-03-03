@@ -1,0 +1,7 @@
+path: D:\jjnotinot\project-deep-learning\test-fire-detection\fire_dataset
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 2
+names: ["fire", "no_fire"]
