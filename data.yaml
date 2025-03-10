@@ -1,4 +1,4 @@
-path: D:\jjnotinot\project-deep-learning\test-fire-detection\fire_dataset
+path: /Users/jjnotinotp/Documents/Fire-Detection-Model/fire_dataset
 train: train/images
 val: valid/images
 test: test/images
