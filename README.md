@@ -49,3 +49,8 @@ The model has been trained using the **Fire Detection** dataset from Roboflow: [
 ### Alert System
 For real-time notifications using Line Notify, use `alarm.ipynb` to configure API integration.
 
+## Contributors
+- **PitchanaChk** 
+- **PattamapornKaru** 
+
+
