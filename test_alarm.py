@@ -7,12 +7,16 @@ import tkinter as tk
 from tkinter import messagebox
 from threading import Thread
 from ultralytics import YOLO
+from sklearn.metrics import precision_score, recall_score, f1_score
+import numpy as np
 
 # ตั้งค่า LINE Notify
 LINE_NOTIFY_TOKEN = "wDWc4yjjTH90dosYSXKva3tfhzW5Qz38NHgGHgt8HfL"
 LINE_NOTIFY_URL = "https://notify-api.line.me/api/notify"
 
-# ฟังก์ชันส่งข้อความไปยัง LINE Notify
+
+
+# Function to send LINE Notify message with image
 def send_line_notify(message, image_path=None):
     headers = {"Authorization": f"Bearer {LINE_NOTIFY_TOKEN}"}
     data = {"message": message}
@@ -24,7 +28,7 @@ def send_line_notify(message, image_path=None):
     else:
         requests.post(LINE_NOTIFY_URL, headers=headers, data=data)
 
-# ฟังก์ชันแสดง pop-up แจ้งเตือน
+# Function to show pop-up alert and stop further notifications
 def show_popup(message, stop_alert_event):
     root = tk.Tk()
     root.withdraw()
@@ -32,15 +36,15 @@ def show_popup(message, stop_alert_event):
 
     if response:
         print("User confirmed fire alert!")
-        stop_alert_event.set()  # หยุดการแจ้งเตือนเพิ่มเติม
+        stop_alert_event.set()  # Stop further alerts
     else:
         print("User ignored fire alert!")
     root.destroy()
 
-# โหลดโมเดล YOLO
-model = YOLO(r"runs/detect/train2/weights/best.pt")
+# Load trained YOLO model
+model = YOLO(r"runs/detect/train/weights/best.pt")
 
-# เปิดวิดีโอไฟล์
+# Open video file
 video_path = "test_video/2110972-uhd_3840_2160_30fps.mp4"
 cap = cv2.VideoCapture(video_path)
 
@@ -48,44 +52,25 @@ if not cap.isOpened():
     print("Error: Failed to load video!")
     exit()
 
-# สร้างตัวแปรเก็บสถานะ
 fire_detected = False
 last_alert_time = 0
 fire_detected_time = 0
 last_fire_location = None
+
+# Create an event to stop alerts
 stop_alert_event = threading.Event()
 
-# ขนาดเฟรมวิดีโอ
+# Get frame size
 frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-# ค่าทางสถิติสำหรับ Precision และ Recall
-true_positives = 0
-false_positives = 0
-false_negatives = 0
-
-# ฟังก์ชันคำนวณ IoU (Intersection over Union)
-def calculate_iou(boxA, boxB):
-    xA = max(boxA[0], boxB[0])
-    yA = max(boxA[1], boxB[1])
-    xB = min(boxA[2], boxB[2])
-    yB = min(boxA[3], boxB[3])
-
-    interArea = max(0, xB - xA) * max(0, yB - yA)
-    boxAArea = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1])
-    boxBArea = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
-
-    iou = interArea / float(boxAArea + boxBArea - interArea)
-    return iou
 
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
-        break  # จบเมื่อวิดีโอสิ้นสุด
+        break  # Exit when the video ends
 
-    # ใช้ YOLO ตรวจจับไฟ
+    # Run YOLO fire detection
     results = model(frame)
-    detected_fire = []
 
     for result in results:
         for box in result.boxes:
@@ -93,74 +78,82 @@ while cap.isOpened():
             conf = box.conf[0].item()
             label = result.names[int(box.cls[0])]
 
-            # ตรวจจับวัตถุ "fire" ด้วยความมั่นใจ > 50%
+            # If fire is detected with confidence > 50%
             if "fire" in label.lower() and conf > 0.50:
-                detected_fire.append((x1, y1, x2, y2))
+                center_x, center_y = (x1 + x2) // 2, (y1 + y2) // 2
+                box_size = (x2 - x1) * (y2 - y1)  # Calculate bounding box size
 
-    # เปรียบเทียบกับค่าความจริง (Ground Truth)
-    ground_truth_fire = []  # ต้องใส่ข้อมูล bounding box ของไฟจริง ๆ
+                # **Determine horizontal position**
+                if center_x < frame_width * 0.33:
+                    horizontal_pos = "Left side"
+                elif center_x > frame_width * 0.66:
+                    horizontal_pos = "Right side"
+                else:
+                    horizontal_pos = "Center"
 
-    # คำนวณ True Positive (TP) และ False Negative (FN)
-    for gt_box in ground_truth_fire:
-        matched = False
-        for detected_box in detected_fire:
-            iou = calculate_iou(gt_box, detected_box)
-            if iou > 0.5:
-                true_positives += 1
-                matched = True
-                break
-        if not matched:
-            false_negatives += 1
+                # **Determine vertical position**
+                if center_y < frame_height * 0.33:
+                    vertical_pos = "Top"
+                elif center_y > frame_height * 0.66:
+                    vertical_pos = "Bottom"
+                else:
+                    vertical_pos = "Middle"
 
-    # คำนวณ False Positive (FP)
-    for detected_box in detected_fire:
-        matched = False
-        for gt_box in ground_truth_fire:
-            iou = calculate_iou(gt_box, detected_box)
-            if iou > 0.5:
-                matched = True
-                break
-        if not matched:
-            false_positives += 1
+                # **Determine depth (Near-Far)**
+                if box_size > (frame_width * frame_height * 0.05):  # If bounding box is large
+                    depth_pos = "Near the camera"
+                elif box_size < (frame_width * frame_height * 0.02):  # If bounding box is small
+                    depth_pos = "Far from the camera"
+                else:
+                    depth_pos = "Mid-range"
 
-    # คำนวณ Precision และ Recall
-    precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
-    recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
+                fire_location = f"{horizontal_pos}, {vertical_pos}, {depth_pos}"
+                print(f"🚨 Fire detected at: {fire_location}")
 
-    # แสดงค่า Precision และ Recall บนหน้าจอ
-    cv2.putText(frame, f"Precision: {precision:.2f}", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-    cv2.putText(frame, f"Recall: {recall:.2f}", (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                # Draw bounding box and display position
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                cv2.putText(frame, f"{fire_location}", (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
-    # แสดงผลลัพธ์วิดีโอ
+                # Save the frame with fire detection
+                img_filename = "fire_detected_frame.jpg"
+                cv2.imwrite(img_filename, frame)
+
+                # Check if fire has been detected in the same location for more than 30 seconds
+                current_time = time.time()
+                if fire_location != last_fire_location:
+                    fire_detected_time = current_time  # Reset timer when fire is detected in a new location
+                    last_fire_location = fire_location
+
+                if current_time - fire_detected_time < 30:  # If fire has been detected for less than 30 seconds
+                    if current_time - last_alert_time > 10:  # Alert every 10 seconds
+                        if not stop_alert_event.is_set():  # Only alert if stop signal is not set
+                            # Send alerts to LINE Notify with the image attached
+                            alert_message = f"🔥 Fire detected at: {fire_location}"
+
+                            # Show pop-up alert in a separate thread
+                            Thread(target=show_popup, args=(alert_message, stop_alert_event)).start()
+
+                            # Send alerts to LINE Notify with the image attached
+                            Thread(target=send_line_notify, args=(alert_message, img_filename)).start()
+
+                            last_alert_time = current_time
+
+                else:
+                    # If fire has been detected for more than 30 seconds, stop sending alerts
+                    print("Fire alert stopped for this location.")
+
+    # Resize frame for display
     frame_resized = cv2.resize(frame, (1280, 720))
     cv2.imshow("🔥 Fire Detection System", frame_resized)
 
-    # บันทึกเฟรมที่ตรวจพบไฟ
-    if detected_fire:
-        img_filename = "fire_detected_frame.jpg"
-        cv2.imwrite(img_filename, frame)
-
-        # แจ้งเตือนผ่าน LINE Notify ทุก 10 วินาที
-        current_time = time.time()
-        if current_time - last_alert_time > 10 and not stop_alert_event.is_set():
-            alert_message = "🔥 Fire detected! Precision: {:.2f}, Recall: {:.2f}".format(precision, recall)
-
-            # แสดง pop-up แจ้งเตือน
-            Thread(target=show_popup, args=(alert_message, stop_alert_event)).start()
-
-            # ส่ง LINE Notify พร้อมรูปภาพ
-            Thread(target=send_line_notify, args=(alert_message, img_filename)).start()
-
-            last_alert_time = current_time
-
-    # กด 'q' เพื่อออกจากโปรแกรม
+    # Press 'q' to exit
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
-# ปิดโปรแกรม
 cap.release()
 cv2.destroyAllWindows()
 
-# ลบรูปภาพที่สร้างขึ้น
+# Clean up by deleting the saved image file
 if os.path.exists(img_filename):
     os.remove(img_filename)
