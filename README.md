@@ -1,56 +1,113 @@
-# Fire Detection System using YOLOv8
+### README.md  
 
-## Overview
-This project focuses on developing a fire detection and classification system using YOLOv8, a high-accuracy deep learning model. The system aims to enhance real-time fire detection capabilities while minimizing false negatives. By leveraging object detection and classification techniques, this system can efficiently identify fire incidents in various indoor environments and send real-time alerts via Line Notify or smart home integrations.
+# Fire Detection System using YOLOv8  
 
-## Features
-- Real-time fire detection using YOLOv8
-- Fine-tuned model for high accuracy and reduced false negatives
-- Supports CCTV integration for continuous monitoring
-- Instant alert notifications via Line Notify
-- Optimized for various lighting conditions and obstructions
+## Overview  
+This project is a fire detection system using **YOLOv8**, designed for real-time fire detection in various environments. The system can integrate with **CCTV** for continuous monitoring and send alerts via **Line Notify** when fire is detected.  
 
-## Dataset
-The model has been trained using the **Fire Detection** dataset from Roboflow: [Fire Detection Dataset](https://universe.roboflow.com/dave-absmb/fire-detection-ijcxg-tyrsm/dataset/7). The dataset includes images and videos under different conditions, ensuring robustness across various scenarios. The dataset is stored in the `fire_dataset` folder.
+## Features  
+- Real-time fire detection using **YOLOv8**  
+- Fine-tuned model for **high accuracy** and **low false alarms**  
+- Supports **CCTV integration**  
+- **Instant notifications** via **Line Notify**  
+- **Robust detection** under different lighting conditions  
 
-## Project Structure
+## Dataset  
+The model is trained on the **Fire Detection** dataset from Roboflow:  
+👉 [Fire Detection Dataset](https://universe.roboflow.com/dave-absmb/fire-detection-ijcxg-tyrsm/dataset/7)  
+
+The dataset is organized as follows:  
+```
+fire_dataset/
+│-- train/     # Training images
+│-- test/      # Testing images
+│-- valid/     # Validation images
+```
+
+## Project Structure  
 ```
 |-- fire_dataset/      # Training dataset
 |-- runs/detect/       # Detection results
-|-- test_video/        # Test videos for validation
+|-- test_video/        # Test videos 
 |-- README.md          # Project documentation
-|-- alarm.ipynb        # Notebook for alert system integration
 |-- data.yaml          # Dataset configuration file
 |-- train_model.ipynb  # Model training script
+|-- test_alarm.py      # Fire detection test script
+|-- requirements.txt   # Required dependencies
 |-- yolo11n.pt         # Trained YOLOv11 model (if applicable)
 |-- yolov8n.pt         # Trained YOLOv8 model
 ```
 
-## Installation
-### Prerequisites
-- Python 3.8+
-- PyTorch
-- Ultralytics YOLOv8
-- OpenCV
-- Line Notify API (for alert notifications)
+---
 
-### Setup Instructions
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-repo/fire-detection.git
-   cd fire-detection
-   ```
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Download the trained YOLOv8 model and place it in the project directory.
+## Installation Guide  
 
-### Alert System
-For real-time notifications using Line Notify, use `alarm.ipynb` to configure API integration.
+### **1. Download & Extract the ZIP File**  
+1. Download the project ZIP file and extract it to your preferred directory.  
 
-## Contributors
-- **PitchanaChk** 
-- **PattamapornKaru** 
+```bash
+unzip fire-detection-model.zip
+cd fire-detection-model
+```
 
+### **2. Create a Virtual Environment (Optional but Recommended)**  
+To prevent dependency conflicts, create a virtual environment:  
 
+```bash
+python -m venv fire_env
+source fire_env/bin/activate  # macOS/Linux
+fire_env\Scripts\activate     # Windows
+```
+
+### **3. Install Dependencies**  
+Run the following command to install all required libraries:  
+
+```bash
+pip install -r requirements.txt
+```
+
+### **4. Download & Place the Trained Model**  
+Ensure that `yolov8n.pt` (or `yolo11n.pt`) is in the root directory of the project. If missing, download it from the YOLOv8 repository:  
+
+```bash
+wget https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8n.pt
+```
+
+---
+
+## Running the System  
+
+### **1. Train the Model (Optional)**  
+If you want to train the model from scratch, open **`train_model.ipynb`** in Jupyter Notebook:  
+
+```bash
+jupyter notebook train_model.ipynb
+```
+
+Modify `data.yaml` if necessary to match your dataset path, then run all cells.
+
+---
+
+### **2. Run Fire Detection on a Test Video**  
+To test fire detection on sample videos, run:  
+
+```bash
+python test_alarm.py --model yolov8n.pt --video test_video/fire_test1.mp4
+```
+
+This will process the video and save the output in the `runs/detect/` folder.
+
+---
+
+### **3. Enable Fire Alerts via Line Notify**  
+To receive alerts when fire is detected:  
+
+1. Open **`alarm.ipynb`**  
+2. Follow the instructions to set up **Line Notify API**  
+3. Run the notebook to start receiving notifications.
+
+---
+
+## Contributors  
+- **PitchanaChk**  
+- **PattamapornKaru**  
