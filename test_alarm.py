@@ -45,7 +45,9 @@ def show_popup(message, stop_alert_event):
 model = YOLO(r"runs/detect/train/weights/best.pt")
 
 # Open video file
-video_path = "test_video/2110972-uhd_3840_2160_30fps.mp4"
+video_path = "test_video/fire_test1.mp4"
+#video_path = "test_video/fire_test2.mp4"
+#video_path = "test_video/fire_test3.mp4"
 cap = cv2.VideoCapture(video_path)
 
 if not cap.isOpened():
